@@ -8,6 +8,7 @@
 -- DROP TABLE IF EXISTS audit_logs;
 -- DROP TABLE IF EXISTS manufacturer_updates;
 -- DROP TABLE IF EXISTS complaints;
+-- DROP TABLE IF EXISTS camera_serials;
 -- DROP TABLE IF EXISTS serial_registry;
 -- DROP TABLE IF EXISTS users;
 
@@ -31,21 +32,17 @@ CREATE TABLE IF NOT EXISTS users (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==========================================
--- 2. SERIAL REGISTRY TABLE (Device Master Data)
+-- 2. CAMERA SERIALS TABLE (Device Master Data)
 -- ==========================================
-CREATE TABLE IF NOT EXISTS serial_registry (
+CREATE TABLE IF NOT EXISTS camera_serials (
   id INT PRIMARY KEY AUTO_INCREMENT,
-  serial_no VARCHAR(50) UNIQUE NOT NULL,
-  model VARCHAR(100) NOT NULL,
-  manufacturer VARCHAR(50) NOT NULL,
-  purchase_date DATE NOT NULL,
-  warranty_expiry DATE NOT NULL,
-  status ENUM('active', 'inactive', 'recalled', 'discontinued') DEFAULT 'active',
+  serial_number VARCHAR(50) UNIQUE NOT NULL,
+  item_no VARCHAR(50) NOT NULL,
+  item_description VARCHAR(100) NOT NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  INDEX idx_serial_no (serial_no),
-  INDEX idx_warranty_expiry (warranty_expiry),
-  INDEX idx_manufacturer (manufacturer)
+  INDEX idx_serial_number (serial_number),
+  INDEX idx_item_no (item_no)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==========================================
@@ -62,9 +59,6 @@ CREATE TABLE IF NOT EXISTS complaints (
   serial_no VARCHAR(50),
   device_model VARCHAR(100) NOT NULL,
   issue_description LONGTEXT NOT NULL,
-  purchase_date DATE,
-  warranty_expiry DATE,
-  warranty_valid BOOLEAN NOT NULL DEFAULT 0,
   status ENUM('Pending', 'Booked', 'In-Progress', 'Replaced', 'Rejected') DEFAULT 'Pending',
   priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -122,8 +116,6 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 CREATE INDEX idx_complaint_status_date ON complaints(status, created_at DESC);
 -- Agent daily view
 CREATE INDEX idx_agent_created ON complaints(agent_id, created_at DESC);
--- Warranty checks
-CREATE INDEX idx_warranty_check ON serial_registry(warranty_expiry, status);
 -- Recent complaints
 CREATE INDEX idx_recent_complaints ON complaints(created_at DESC);
 

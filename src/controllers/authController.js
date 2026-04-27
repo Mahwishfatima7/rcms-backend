@@ -6,6 +6,16 @@ const {
   verifyRefreshToken,
 } = require("../utils/jwt");
 
+// Helper function to generate random password
+const generateRandomPassword = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let password = "";
+  for (let i = 0; i < 12; i++) {
+    password += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return password;
+};
+
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
@@ -73,6 +83,61 @@ exports.register = async (req, res, next) => {
   }
 };
 
+// Create agent - Called by management users only
+exports.createAgent = async (req, res, next) => {
+  try {
+    const {
+      name,
+      email,
+      contact_no,
+      emergency_contact,
+      password,
+    } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+      return res.status(400).json({
+        success: false,
+        error: "Name, email, and password are required",
+      });
+    }
+
+    // Check if agent already exists by email
+    const existingEmail = await User.findByEmail(email);
+    if (existingEmail) {
+      return res.status(409).json({
+        success: false,
+        error: "Agent with this email already exists",
+      });
+    }
+
+    // Hash the provided password
+    const passwordHash = await hashPassword(password);
+
+    // Create agent with 'agent' role
+    const agent = await User.create({
+      name,
+      email,
+      passwordHash,
+      role: "agent",
+      contact_no: contact_no || null,
+      emergency_contact: emergency_contact || null,
+    });
+
+    const { password_hash, ...agentWithoutPassword } = agent;
+
+    res.status(201).json({
+      success: true,
+      message: "Agent created successfully",
+      data: {
+        agent: agentWithoutPassword,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getMe = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.id);
@@ -120,6 +185,61 @@ exports.refreshToken = async (req, res, next) => {
       success: true,
       message: "Token refreshed successfully",
       data: { token: newToken, refreshToken: newRefreshToken },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Change password - Authenticated users only
+exports.changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    // Validate required fields
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "Current password and new password are required",
+      });
+    }
+
+    // Fetch user with password hash
+    const user = await User.findByEmail(
+      req.user.email || (await User.findById(userId)).email,
+    );
+    if (!user) {
+      return res.status(404).json({ success: false, error: "User not found" });
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await comparePassword(
+      currentPassword,
+      user.password_hash,
+    );
+    if (!isCurrentPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        error: "Current password is incorrect",
+      });
+    }
+
+    // Check if new password is different from current
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        success: false,
+        error: "New password must be different from current password",
+      });
+    }
+
+    // Hash and update new password
+    const newPasswordHash = await hashPassword(newPassword);
+    await User.update(userId, { password_hash: newPasswordHash });
+
+    res.json({
+      success: true,
+      message: "Password changed successfully",
     });
   } catch (err) {
     next(err);

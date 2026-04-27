@@ -3,9 +3,10 @@ const { getOne, getAll, insertOne, updateOne } = require("../config/database");
 class Complaint {
   static async findById(id) {
     return getOne(
-      `SELECT c.*, u.name AS agent_name 
+      `SELECT c.*, u.name AS agent_name, cs.item_no, cs.item_description
        FROM complaints c 
        LEFT JOIN users u ON c.agent_id = u.id 
+       LEFT JOIN camera_serials cs ON c.serial_no = cs.serial_number
        WHERE c.id = ?`,
       [id],
     );
@@ -16,9 +17,10 @@ class Complaint {
   }
 
   static async getAll(filters = {}) {
-    let sql = `SELECT c.*, u.name AS agent_name 
+    let sql = `SELECT c.*, u.name AS agent_name, cs.item_no, cs.item_description
                FROM complaints c 
                LEFT JOIN users u ON c.agent_id = u.id 
+               LEFT JOIN camera_serials cs ON c.serial_no = cs.serial_number
                WHERE 1=1`;
     const values = [];
 
@@ -49,8 +51,8 @@ class Complaint {
       `INSERT INTO complaints (
         ticket_no, agent_id, customer_name, customer_phone, customer_email,
         customer_address, serial_no, device_model, issue_description,
-        purchase_date, warranty_expiry, warranty_valid, status, priority
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        status, priority
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         data.ticketNo,
         data.agentId,
@@ -61,14 +63,23 @@ class Complaint {
         data.serialNo,
         data.deviceModel,
         data.issueDescription,
-        data.purchaseDate,
-        data.warrantyExpiry,
-        data.warrantyValid,
         data.status || "Pending",
         data.priority || "medium",
       ],
     );
     return this.findById(result.insertId);
+  }
+
+  static async findActiveComplaintBySerial(serialNo) {
+    return getOne(
+      `SELECT c.*, u.name AS agent_name, cs.item_no, cs.item_description
+       FROM complaints c 
+       LEFT JOIN users u ON c.agent_id = u.id 
+       LEFT JOIN camera_serials cs ON c.serial_no = cs.serial_number
+       WHERE c.serial_no = ? AND c.status NOT IN ('Rejected', 'Replaced')
+       ORDER BY c.created_at DESC LIMIT 1`,
+      [serialNo],
+    );
   }
 
   static async updateStatus(id, status) {

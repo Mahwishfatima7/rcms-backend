@@ -96,6 +96,57 @@ const serialSchema = Joi.object({
   warrantyExpiry: Joi.date().required(),
 });
 
+// Agent Creation Validator
+const agentCreationSchema = Joi.object({
+  name: Joi.string().min(3).required().messages({
+    "string.min": "Employee name must be at least 3 characters",
+    "any.required": "Employee name is required",
+  }),
+  email: Joi.string().email().required().messages({
+    "string.email": "Please enter a valid email address",
+    "any.required": "Email is required",
+  }),
+  contact_no: Joi.string().required().messages({
+    "any.required": "Contact number is required",
+  }),
+  emergency_contact: Joi.string().required().messages({
+    "any.required": "Emergency contact is required",
+  }),
+  password: Joi.string()
+    .min(8)
+    .pattern(/[a-z]/, "lowercase")
+    .pattern(/[A-Z]/, "uppercase")
+    .pattern(/[0-9]/, "digit")
+    .pattern(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "special")
+    .required()
+    .messages({
+      "string.pattern.base":
+        "Password must be at least 8 characters with uppercase, lowercase, digit, and special character",
+      "string.min": "Password must be at least 8 characters",
+      "any.required": "Password is required",
+    }),
+});
+
+// Change Password Validator
+const changePasswordSchema = Joi.object({
+  currentPassword: Joi.string().required().messages({
+    "any.required": "Current password is required",
+  }),
+  newPassword: Joi.string()
+    .min(8)
+    .pattern(/[a-z]/, "lowercase")
+    .pattern(/[A-Z]/, "uppercase")
+    .pattern(/[0-9]/, "digit")
+    .pattern(/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/, "special")
+    .required()
+    .messages({
+      "string.pattern.base":
+        "Password must be at least 8 characters with uppercase, lowercase, digit, and special character",
+      "string.min": "Password must be at least 8 characters",
+      "any.required": "New password is required",
+    }),
+});
+
 // Validation middleware factory
 const validate = (schema) => {
   return (req, res, next) => {
@@ -117,6 +168,8 @@ module.exports = {
   loginSchema,
   registerSchema,
   refreshTokenSchema,
+  agentCreationSchema,
+  changePasswordSchema,
   complaintSchema,
   complaintUpdateSchema,
   bookingSchema,

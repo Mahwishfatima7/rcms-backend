@@ -3,12 +3,12 @@ const SerialEntry = require("../models/SerialEntry");
 exports.validateSerial = async (req, res, next) => {
   try {
     const { serialNo } = req.params;
-    const validation = await SerialEntry.validateWarranty(serialNo);
+    const validation = await SerialEntry.checkExists(serialNo);
 
     res.json({
       success: true,
       data: {
-        status: validation.status,
+        exists: validation.exists,
         serial: validation.entry,
       },
     });
@@ -51,22 +51,26 @@ exports.getSerialByNo = async (req, res, next) => {
 
 exports.createSerial = async (req, res, next) => {
   try {
-    const { serialNo, model, manufacturer, purchaseDate, warrantyExpiry } =
-      req.body;
+    const { serialNo, itemNo, itemDescription } = req.body;
+
+    if (!serialNo || !itemNo || !itemDescription) {
+      return res.status(400).json({
+        success: false,
+        error: "serialNo, itemNo, and itemDescription are required",
+      });
+    }
 
     const existing = await SerialEntry.findBySerialNo(serialNo);
     if (existing) {
       return res
         .status(409)
-        .json({ success: false, error: "Serial already exists" });
+        .json({ success: false, error: "Serial number already exists" });
     }
 
     const serial = await SerialEntry.create({
-      serialNo,
-      model,
-      manufacturer,
-      purchaseDate,
-      warrantyExpiry,
+      serialNumber: serialNo,
+      itemNo,
+      itemDescription,
     });
 
     res.status(201).json({

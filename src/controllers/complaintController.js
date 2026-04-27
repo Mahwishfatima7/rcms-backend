@@ -110,9 +110,33 @@ exports.createComplaint = async (req, res, next) => {
       serialNo,
       issueDescription,
       deviceModel,
-      purchaseDate,
-      warrantyExpiry,
     } = req.body;
+
+    // Check if serial number exists in database
+    if (serialNo) {
+      const serialExists = await SerialEntry.findBySerialNo(serialNo);
+      if (!serialExists) {
+        return res.status(400).json({
+          success: false,
+          error: "Camera serial number does not exist in database",
+        });
+      }
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: "Serial number is required",
+      });
+    }
+
+    // Check if a complaint already exists for this serial number (excluding Rejected/Replaced)
+    const existingComplaint = await Complaint.findActiveComplaintBySerial(serialNo);
+    if (existingComplaint) {
+      return res.status(400).json({
+        success: false,
+        error: `Complaint is already registered for this camera. Ticket: ${existingComplaint.ticket_no}`,
+        data: { existingTicket: existingComplaint.ticket_no },
+      });
+    }
 
     const ticketNo = await generateTicketNo();
 
@@ -123,12 +147,9 @@ exports.createComplaint = async (req, res, next) => {
       customerPhone,
       customerEmail,
       customerAddress,
-      serialNo: serialNo || null, // Allow null serial numbers
+      serialNo: serialNo,
       deviceModel: deviceModel || "Not Specified",
       issueDescription,
-      purchaseDate: purchaseDate || null,
-      warrantyExpiry: warrantyExpiry || null,
-      warrantyValid: false,
       status: "Pending",
     });
 
